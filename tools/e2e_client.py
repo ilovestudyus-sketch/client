@@ -129,12 +129,12 @@ def main():
                 relay = m.split()[2]
                 break
             if m.startswith(f"{tag} FAIL"):
-                (out / "summary.md").write_text(f"# 端到端（客户端 {platform.system()}）\n\n服务端没有拨通节点。\n")
+                (out / "summary.md").write_text(f"# 端到端（客户端 {platform.system()}）\n\n服务端没有拨通节点。\n", encoding="utf-8")
                 return
         if not relay:
             time.sleep(10)
     if not relay:
-        (out / "summary.md").write_text(f"# 端到端（客户端 {platform.system()}）\n\n25 分钟内没等到服务端。\n")
+        (out / "summary.md").write_text(f"# 端到端（客户端 {platform.system()}）\n\n25 分钟内没等到服务端。\n", encoding="utf-8")
         return
     rh, rp = relay.rsplit(":", 1)
     rows = {h: [] for h in TARGETS}
@@ -147,7 +147,7 @@ def main():
     post(topic, f"{tag} DONE {platform.system()}")
     lines = [f"# 端到端分段实测（客户端 {platform.system()} {platform.release()}，GitHub 托管机器）", "",
              "中继是公共的 bore.pub，所以「客户端→服务端」比真实手机到服务器多绕一跳。单位 ms，中位 / P90。", "",
-             "| 目标 | 次数 | 失败 | 客户端→中继 TCP | 问候往返（客户端↔服务端） | 认证往返 | CONNECT（服务端经隧道解析+建连） | TLS | 首字节 | 合计 |",
+             "| 目标 | 次数 | 失败 | 客户端→中继 TCP | 问候往返（客户端↔服务端） | 认证往返 | CONNECT（服务端经隧道解析+建连） | TLS | 首字节 | 合计（含读 64KB 正文） |",
              "|---|---|---|---|---|---|---|---|---|---|"]
     for h, rs in rows.items():
         ok = [r for r in rs if "error" not in r]
@@ -156,8 +156,8 @@ def main():
     for h, rs in curls.items():
         ok = [r for r in rs if "error" not in r and r.get("code") not in ("000", None)]
         lines.append(f"| {h} | {len(rs)} | {len(rs) - len(ok)} | " + " | ".join(st([r.get(k) for r in ok]) for k in ("tcp", "tls", "ttfb", "total")) + " |")
-    (out / "summary.md").write_text("\n".join(lines) + "\n")
-    (out / "client.json").write_text(json.dumps({"rows": rows, "curl": curls}, indent=1))
+    (out / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    (out / "client.json").write_text(json.dumps({"rows": rows, "curl": curls}, indent=1), encoding="utf-8")
 
 
 if __name__ == "__main__":
