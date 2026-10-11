@@ -1,0 +1,48 @@
+name: 端到端分段实测（客户端）
+
+# 和 service 仓库的「端到端分段实测（服务端）」一起启动。
+# 需要仓库 Secrets：E2E_PASS、E2E_TOPIC（与服务端相同）。地址和密码都不写进仓库。
+
+on:
+  workflow_dispatch:
+    inputs:
+      rounds:
+        description: "每个网站访问几轮"
+        default: "6"
+      tag:
+        description: "本次标记（与服务端相同）"
+        default: "t1"
+
+permissions:
+  contents: read
+
+jobs:
+  client:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    env:
+      E2E_PASS: ${{ secrets.E2E_PASS }}
+      E2E_TOPIC: ${{ secrets.E2E_TOPIC }}
+      ROUNDS: ${{ inputs.rounds }}
+      TAG: ${{ inputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 实测
+        shell: bash
+        run: python tools/e2e_client.py
+      - name: 写入摘要
+        if: always()
+        shell: bash
+        run: if [ -f out/summary.md ]; then cat out/summary.md >> "$GITHUB_STEP_SUMMARY"; fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-client-${{ matrix.os }}
+          path: out/
