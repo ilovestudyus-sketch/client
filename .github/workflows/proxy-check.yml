@@ -1,0 +1,54 @@
+name: 代理连通实测
+
+# 从 GitHub 的 Windows / Ubuntu / macOS 机器，经服务器对外的代理端口访问网页，记录用时和出口。
+# 服务器地址、端口、账号、密码都放在仓库 Secrets，不写进仓库。
+#   PROXY_URLS      每行一个：socks5h://用户:密码@域名:端口 或 http://用户:密码@域名:端口
+#   SINGBOX_CONFIG  可选。sing-box 客户端配置 JSON，需带一个 socks 入站 127.0.0.1:2080
+# 两个都没设时，任务直接结束，不报错。
+
+on:
+  workflow_dispatch:
+    inputs:
+      rounds:
+        description: "每个代理访问几轮"
+        default: "5"
+
+permissions:
+  contents: read
+
+jobs:
+  client:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      PROXY_URLS: ${{ secrets.PROXY_URLS }}
+      SINGBOX_CONFIG: ${{ secrets.SINGBOX_CONFIG }}
+      ROUNDS: ${{ inputs.rounds }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 准备 sing-box（只在设置了 SINGBOX_CONFIG 时）
+        if: env.SINGBOX_CONFIG != ''
+        shell: bash
+        run: |
+          python3 tools/fetch_singbox.py
+      - name: 实测
+        shell: bash
+        run: |
+          python3 tools/proxy_check.py --out out
+      - name: 写入摘要
+        if: always()
+        shell: bash
+        run: |
+          if [ -f out/summary.md ]; then cat out/summary.md >> "$GITHUB_STEP_SUMMARY"; fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: proxy-check-${{ matrix.os }}
+          path: out/
